@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Telegram Membership Check</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"/>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 20px; }
+    .container { background: white; padding: 20px; border-radius: 10px; max-width: 600px; margin: auto; }
+    .channel { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #ddd; }
+    .channel-logo { width: 40px; height: 40px; border-radius: 50%; }
+    .channel-name { flex-grow: 1; margin-left: 10px; font-weight: bold; }
+    .status { margin-right: 10px; }
+    .joined { color: green; }
+    .error { color: red; }
+    .check-button, .join-button, .visit-button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; }
+    .join-button { background: #007bff; color: white; }
+    .visit-button { background: green; color: white; }
+    .check-button { background: #28a745; color: white; margin-top: 15px; width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Telegram Membership Check</h2>
+    <div id="channel-list"></div>
+    <button class="check-button" onclick="checkMembership()">Check Membership</button>
+  </div>
+
+  <script>
+    const botToken = '7873235362:AAFJp0ppDlYP1d_qBwT-R2kStFRgkGums94';
+    const username = new URLSearchParams(window.location.search).get('username');
+    const webhook = new URLSearchParams(window.location.search).get('webhook');
+    const redirectUrl = new URLSearchParams(window.location.search).get('redirect_url');
+
+    const channels = [
+      { id: '@sinhlacartoon', name: 'Sinhala Cartoon', logo: 'https://via.placeholder.com/40?text=SC' },
+      { id: '@sl_bjs', name: 'SL BJS', logo: 'https://via.placeholder.com/40?text=BJS' },
+    ];
+
+    const renderChannels = () => {
+      const list = document.getElementById('channel-list');
+      channels.forEach((ch, i) => {
+        const el = document.createElement('div');
+        el.className = 'channel';
+        el.innerHTML = `
+          <img src="${ch.logo}" class="channel-logo">
+          <span class="channel-name">${ch.name}</span>
+          <span class="status" id="status-${i}">Pending...</span>
+          <a href="https://t.me/${ch.id.replace('@', '')}" target="_blank" class="join-button" id="btn-${i}">Join</a>
+        `;
+        list.appendChild(el);
+      });
+    };
+
+    const checkMembership = async () => {
+      if (!username) {
+        alert("Username not provided in URL. Use ?username=123456789");
+        return;
+      }
+
+      let allJoined = true;
+
+      for (let i = 0; i < channels.length; i++) {
+        const ch = channels[i];
+        const statusEl = document.getElementById(`status-${i}`);
+        const btnEl = document.getElementById(`btn-${i}`);
+
+        try {
+          const res = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${ch.id}&user_id=${username}`);
+          const data = await res.json();
+
+          if (data.ok) {
+            const status = data.result.status;
+            if (['member', 'administrator', 'creator'].includes(status)) {
+              statusEl.innerHTML = '<i class="fas fa-check"></i> Joined';
+              statusEl.className = 'status joined';
+              btnEl.innerText = 'Visit';
+              btnEl.className = 'visit-button';
+              btnEl.href = `https://t.me/${ch.id.replace('@', '')}`;
+            } else {
+              throw new Error();
+            }
+          } else {
+            throw new Error();
+          }
+        } catch {
+          statusEl.innerHTML = '<i class="fas fa-times"></i> Not Joined';
+          statusEl.className = 'status error';
+          btnEl.innerText = 'Join';
+          btnEl.className = 'join-button';
+          btnEl.href = `https://t.me/${ch.id.replace('@', '')}`;
+          allJoined = false;
+        }
+      }
+
+      if (allJoined) {
+        alert("✅ You have joined all channels.");
+        if (webhook) {
+          fetch(webhook).catch(() => {});
+        }
+        setTimeout(() => {
+          if (redirectUrl) {
+            window.location.href = redirectUrl;
+          } else {
+            alert("Thank you!");
+          }
+        }, 1000);
+      } else {
+        alert("❌ Please join all channels before proceeding.");
+      }
+    };
+
+    renderChannels();
+  </script>
+</body>
+</html>
