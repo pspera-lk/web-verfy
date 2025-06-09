@@ -29,13 +29,15 @@
 
   <script>
     const botToken = '7873235362:AAFJp0ppDlYP1d_qBwT-R2kStFRgkGums94';
-    const username = new URLSearchParams(window.location.search).get('username');
-    const webhook = new URLSearchParams(window.location.search).get('webhook');
-    const redirectUrl = new URLSearchParams(window.location.search).get('redirect_url');
+    const query = new URLSearchParams(window.location.search);
+    const username = query.get('username');
+    const webhook = decodeURIComponent(query.get('webhook') || '');
+    const redirectUrl = query.get('redirect_url');
 
     const channels = [
-      { id: '@sinhlacartoon', name: 'Sinhala Cartoon', logo: 'https://via.placeholder.com/40?text=SC' },
-      { id: '@sl_bjs', name: 'SL BJS', logo: 'https://via.placeholder.com/40?text=BJS' },
+      { id: '@sinhlacartoon', name: 'Sinhala Cartoon', logo: 'https://i.ibb.co/WWj3LPFk/cartoon.jpg' },
+      { id: '@sl_bjs', name: 'SL BJs', logo: 'https://i.ibb.co/spCGHpyK/slbjs.jpg' },
+      { id: '@Reload_proofs', name: 'Reload Proofs', logo: 'https://via.placeholder.com/40?text=RP' }
     ];
 
     const renderChannels = () => {
@@ -94,12 +96,14 @@
         }
       }
 
+      // Notify bot through webhook
+      if (webhook) {
+        const finalStatus = allJoined ? 'joined' : 'not_joined';
+        fetch(`${webhook}?status=${finalStatus}`).catch(() => {});
+      }
+
       if (allJoined) {
         alert("✅ You have joined all channels.");
-        if (webhook) {
-          // ⭐️ Key line: add status=joined
-          fetch(`${webhook}?status=joined`).catch(() => {});
-        }
         setTimeout(() => {
           if (redirectUrl) {
             window.location.href = redirectUrl;
@@ -108,7 +112,7 @@
           }
         }, 1000);
       } else {
-        alert("❌ Please join all channels before proceeding.");
+        alert("❌ Please join all channels before continuing.");
       }
     };
 
