@@ -22,19 +22,21 @@
 </head>
 <body>
   <div class="container">
-    <h2>Join All Telegram Channels</h2>
+    <h2>Telegram Membership Check</h2>
     <div id="channel-list"></div>
     <button class="check-button" onclick="checkMembership()">Check Membership</button>
   </div>
 
   <script>
     const botToken = '7873235362:AAFJp0ppDlYP1d_qBwT-R2kStFRgkGums94';
-    const username = new URLSearchParams(window.location.search).get('username');
-    const webhook = new URLSearchParams(window.location.search).get('webhook');
+    const query = new URLSearchParams(window.location.search);
+    const username = query.get('username');
+    const webhook = decodeURIComponent(query.get('webhook') || '');
+    const redirectUrl = query.get('redirect_url');
 
     const channels = [
-      { id: '@sinhlacartoon', name: 'Sinhala Cartoon', logo: 'https://i.ibb.co/WWj3LPFk/sc.png' },
-      { id: '@sl_bjs', name: 'SL BJS', logo: 'https://i.ibb.co/spCGHpyK/bjs.png' },
+      { id: '@sinhlacartoon', name: 'Sinhala Cartoon', logo: 'https://i.ibb.co/WWj3LPFk/cartoon.jpg' },
+      { id: '@sl_bjs', name: 'SL BJs', logo: 'https://i.ibb.co/spCGHpyK/slbjs.jpg' },
       { id: '@Reload_proofs', name: 'Reload Proofs', logo: 'https://via.placeholder.com/40?text=RP' }
     ];
 
@@ -70,12 +72,17 @@
           const res = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${ch.id}&user_id=${username}`);
           const data = await res.json();
 
-          if (data.ok && ['member', 'administrator', 'creator'].includes(data.result.status)) {
-            statusEl.innerHTML = '<i class="fas fa-check"></i> Joined';
-            statusEl.className = 'status joined';
-            btnEl.innerText = 'Visit';
-            btnEl.className = 'visit-button';
-            btnEl.href = `https://t.me/${ch.id.replace('@', '')}`;
+          if (data.ok) {
+            const status = data.result.status;
+            if (['member', 'administrator', 'creator'].includes(status)) {
+              statusEl.innerHTML = '<i class="fas fa-check"></i> Joined';
+              statusEl.className = 'status joined';
+              btnEl.innerText = 'Visit';
+              btnEl.className = 'visit-button';
+              btnEl.href = `https://t.me/${ch.id.replace('@', '')}`;
+            } else {
+              throw new Error();
+            }
           } else {
             throw new Error();
           }
@@ -89,10 +96,23 @@
         }
       }
 
-      if (allJoined && webhook) {
-        window.location.href = `${webhook}?status=joined`;
-      } else if (!allJoined) {
-        alert("❌ Please join all channels before proceeding.");
+      // Notify bot through webhook
+      if (webhook) {
+        const finalStatus = allJoined ? 'joined' : 'not_joined';
+        fetch(`${webhook}?status=${finalStatus}`).catch(() => {});
+      }
+
+      if (allJoined) {
+        alert("✅ You have joined all channels.");
+        setTimeout(() => {
+          if (redirectUrl) {
+            window.location.href = redirectUrl;
+          } else {
+            alert("Thank you!");
+          }
+        }, 1000);
+      } else {
+        alert("❌ Please join all channels before continuing.");
       }
     };
 
