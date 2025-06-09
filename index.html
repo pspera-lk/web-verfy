@@ -1,117 +1,149 @@
+<?php
+$botToken = '7873235362:AAFJp0ppDlYP1d_qBwT-R2kStFRgkGums94';
+
+$channels = [
+    [
+        'id' => '@sinhlacartoon',
+        'name' => 'Sinhala Cartoon',
+        'logo' => 'https://i.ibb.co/WWj3LPFk/sinhlacartoon.jpg'
+    ],
+    [
+        'id' => '@sl_bjs',
+        'name' => 'SL BJs',
+        'logo' => 'https://i.ibb.co/spCGHpyK/slbjs.jpg'
+    ],
+    [
+        'id' => '@Reload_proofs',
+        'name' => 'Reload Proofs',
+        'logo' => 'https://via.placeholder.com/40?text=Reload+Proofs'
+    ]
+];
+
+$channelIdsJson = json_encode(array_column($channels, 'id', 'name'));
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Telegram Membership Check</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"/>
   <style>
-    body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 20px; }
-    .container { background: white; padding: 20px; border-radius: 10px; max-width: 600px; margin: auto; }
-    .channel { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #ddd; }
-    .channel-logo { width: 40px; height: 40px; border-radius: 50%; }
-    .channel-name { flex-grow: 1; margin-left: 10px; font-weight: bold; }
-    .status { margin-right: 10px; }
+    body { font-family: Arial, sans-serif; background: #f2f2f2; padding: 20px; }
+    .container { max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1);}
+    .channel { display: flex; align-items: center; margin-bottom: 15px; }
+    .channel-logo { width: 40px; height: 40px; border-radius: 5px; margin-right: 10px; }
+    .status { margin-left: auto; font-weight: bold; }
     .joined { color: green; }
     .error { color: red; }
-    .check-button, .join-button, .visit-button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; }
-    .join-button { background: #007bff; color: white; }
-    .visit-button { background: green; color: white; }
-    .check-button { background: #28a745; color: white; margin-top: 15px; width: 100%; }
+    .check-button, .join-button, .visit-button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      background-color: #007bff;
+      cursor: pointer;
+    }
+    .popup { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; }
+    .popup.active { display: flex; }
+    .popup-content { background: white; padding: 30px; border-radius: 10px; text-align: center; }
+    .popup-icon { font-size: 30px; margin-bottom: 10px; }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>Telegram Membership Check</h2>
-    <div id="channel-list"></div>
+    <div id="channels">
+      <?php foreach ($channels as $index => $channel): ?>
+        <div class="channel" id="channel<?php echo $index + 1; ?>">
+          <img src="<?php echo $channel['logo']; ?>" class="channel-logo" alt="<?php echo $channel['name']; ?>"/>
+          <span><?php echo $channel['name']; ?></span>
+          <span class="status" id="status-channel<?php echo $index + 1; ?>">pending...</span>
+          <a href="https://t.me/<?php echo ltrim($channel['id'], '@'); ?>" class="join-button" id="join-channel<?php echo $index + 1; ?>" target="_blank">Join</a>
+        </div>
+      <?php endforeach; ?>
+    </div>
     <button class="check-button" onclick="checkMembership()">Check Membership</button>
   </div>
 
+  <div class="popup" id="popup">
+    <div class="popup-content">
+      <div class="popup-icon" id="popup-icon"><i class="fas fa-spinner fa-spin"></i></div>
+      <h3 id="popup-header">Checking...</h3>
+      <p id="popup-body">Please wait while we check your membership status.</p>
+      <button onclick="closePopup()">Close</button>
+    </div>
+  </div>
+
   <script>
-    const botToken = '7873235362:AAFJp0ppDlYP1d_qBwT-R2kStFRgkGums94';
-    const username = new URLSearchParams(window.location.search).get('username');
-    const webhook = new URLSearchParams(window.location.search).get('webhook');
-    const redirectUrl = new URLSearchParams(window.location.search).get('redirect_url');
+    const botToken = "<?php echo $botToken ?>";
+    const channels = <?php echo $channelIdsJson ?>;
+    const username = new URLSearchParams(window.location.search).get("username") || "";
 
-    const channels = [
-      { id: '@sinhlacartoon', name: 'Sinhala Cartoon', logo: 'https://via.placeholder.com/40?text=SC' },
-      { id: '@sl_bjs', name: 'SL BJS', logo: 'https://via.placeholder.com/40?text=BJS' },
-    ];
+    function showPopup(header, body, icon) {
+      document.getElementById("popup-header").innerText = header;
+      document.getElementById("popup-body").innerText = body;
+      document.getElementById("popup-icon").innerHTML = `<i class="fas ${icon}"></i>`;
+      document.getElementById("popup").classList.add("active");
+    }
 
-    const renderChannels = () => {
-      const list = document.getElementById('channel-list');
-      channels.forEach((ch, i) => {
-        const el = document.createElement('div');
-        el.className = 'channel';
-        el.innerHTML = `
-          <img src="${ch.logo}" class="channel-logo">
-          <span class="channel-name">${ch.name}</span>
-          <span class="status" id="status-${i}">Pending...</span>
-          <a href="https://t.me/${ch.id.replace('@', '')}" target="_blank" class="join-button" id="btn-${i}">Join</a>
-        `;
-        list.appendChild(el);
-      });
-    };
+    function closePopup() {
+      document.getElementById("popup").classList.remove("active");
+    }
 
-    const checkMembership = async () => {
+    async function checkMembership() {
       if (!username) {
-        alert("Username not provided in URL. Use ?username=123456789");
+        showPopup("Error", "Username not provided in URL.", "fa-times-circle");
         return;
       }
 
-      let allJoined = true;
+      showPopup("Checking...", "Please wait while we check...", "fa-spinner fa-spin");
 
-      for (let i = 0; i < channels.length; i++) {
-        const ch = channels[i];
-        const statusEl = document.getElementById(`status-${i}`);
-        const btnEl = document.getElementById(`btn-${i}`);
+      let allJoined = true;
+      const keys = Object.keys(channels);
+
+      for (let i = 0; i < keys.length; i++) {
+        const name = keys[i];
+        const channel = channels[name];
+        const statusElem = document.getElementById(`status-channel${i + 1}`);
+        const joinButton = document.getElementById(`join-channel${i + 1}`);
 
         try {
-          const res = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${ch.id}&user_id=${username}`);
+          const res = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${channel}&user_id=${username}`);
           const data = await res.json();
 
           if (data.ok) {
             const status = data.result.status;
             if (['member', 'administrator', 'creator'].includes(status)) {
-              statusEl.innerHTML = '<i class="fas fa-check"></i> Joined';
-              statusEl.className = 'status joined';
-              btnEl.innerText = 'Visit';
-              btnEl.className = 'visit-button';
-              btnEl.href = `https://t.me/${ch.id.replace('@', '')}`;
+              statusElem.innerHTML = "✅ Joined";
+              statusElem.className = "status joined";
+              joinButton.textContent = "Visit";
+              joinButton.className = "visit-button";
             } else {
-              throw new Error();
+              statusElem.innerHTML = "❌ Not Joined";
+              statusElem.className = "status error";
+              allJoined = false;
             }
           } else {
-            throw new Error();
+            statusElem.innerHTML = "❌ Not Joined";
+            statusElem.className = "status error";
+            allJoined = false;
           }
-        } catch {
-          statusEl.innerHTML = '<i class="fas fa-times"></i> Not Joined';
-          statusEl.className = 'status error';
-          btnEl.innerText = 'Join';
-          btnEl.className = 'join-button';
-          btnEl.href = `https://t.me/${ch.id.replace('@', '')}`;
+        } catch (err) {
+          statusElem.innerHTML = "⚠️ Error";
+          statusElem.className = "status error";
           allJoined = false;
         }
       }
 
       if (allJoined) {
-        alert("✅ You have joined all channels.");
-        if (webhook) {
-          fetch(webhook).catch(() => {});
-        }
-        setTimeout(() => {
-          if (redirectUrl) {
-            window.location.href = redirectUrl;
-          } else {
-            alert("Thank you!");
-          }
-        }, 1000);
+        showPopup("Success", "You have joined all required channels!", "fa-check-circle");
       } else {
-        alert("❌ Please join all channels before proceeding.");
+        showPopup("Incomplete", "Please join all required channels.", "fa-times-circle");
       }
-    };
-
-    renderChannels();
+    }
   </script>
+
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 </body>
 </html>
