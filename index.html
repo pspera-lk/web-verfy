@@ -97,7 +97,7 @@
       if (allJoined) {
         alert("✅ You have joined all channels.");
         if (webhook) {
-          fetch(webhook).catch(() => {});
+          fetch(`${webhook}?status=joined`).catch(() => {});
         }
         setTimeout(() => {
           if (redirectUrl) {
